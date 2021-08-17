@@ -11,13 +11,13 @@ pub type Result<T> = ::std::result::Result<T, SurfPoolError>;
 pub struct SurfPool {
     pool: Vec<Arc<Mutex<Client>>>,
     semaphore: Arc<Semaphore>,
-    connect_request: Option<surf::Request>,
+    health_check: Option<surf::Request>,
 }
 
 #[derive(Debug, Default)]
 pub struct SurfPoolBuilder {
     size: usize,
-    connect_request: Option<surf::RequestBuilder>,
+    health_check: Option<surf::RequestBuilder>,
     pre_connect: bool,
 }
 
@@ -37,8 +37,8 @@ impl SurfPoolBuilder {
             ..Default::default()
         })
     }
-    pub fn connect_request(mut self, connect_request: surf::RequestBuilder) -> Self {
-        self.connect_request = Some(connect_request);
+    pub fn health_check(mut self, health_check: surf::RequestBuilder) -> Self {
+        self.health_check = Some(health_check);
         self
     }
     pub fn pre_connect(mut self, pre_connect: bool) -> Self {
@@ -51,7 +51,7 @@ impl SurfPoolBuilder {
             let m = Arc::new(Mutex::new(Client::new()));
             pool.push(m.clone());
         }
-        let connect_request = if let Some(req) = self.connect_request {
+        let health_check = if let Some(req) = self.health_check {
             let req = req.build();
 
             if self.pre_connect {
@@ -67,7 +67,7 @@ impl SurfPoolBuilder {
         SurfPool {
             pool,
             semaphore: Arc::new(Semaphore::new(self.size)),
-            connect_request,
+            health_check,
         }
     }
 }
@@ -106,7 +106,7 @@ mod tests {
     async fn with_pre_connected_pool() {
         let builder = SurfPoolBuilder::new(3)
             .unwrap()
-            .connect_request(surf::get("https://pot.pizzamig.dev"))
+            .health_check(surf::get("https://pot.pizzamig.dev"))
             .pre_connect(true);
         let uut = builder.build().await;
         assert_eq!(uut.get_pool_size(), 3);
@@ -133,7 +133,7 @@ mod tests {
     async fn not_pre_connected_pool() {
         let builder = SurfPoolBuilder::new(3)
             .unwrap()
-            .connect_request(surf::get("https://pot.pizzamig.dev"))
+            .health_check(surf::get("https://pot.pizzamig.dev"))
             .pre_connect(false);
         let uut = builder.build().await;
         assert_eq!(uut.get_pool_size(), 3);
