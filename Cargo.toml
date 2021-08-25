@@ -1,7 +1,12 @@
 [package]
 name = "surf-pool"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2018"
+authors = ["Luca Pizzamiglio <pizzamig@FreeBSD.org>"]
+keywords = ["surf", "async-std", "pool"]
+description = "Utility modules and functions useful to interact with the pot framework"
+readme = "README.md"
+license-file = "LICENSE"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
