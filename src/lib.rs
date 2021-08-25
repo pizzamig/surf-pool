@@ -1,3 +1,4 @@
+//! Connection pool for Surf
 use async_std::sync::{Mutex, MutexGuardArc};
 use async_weighted_semaphore::{Semaphore, SemaphoreGuardArc};
 use std::sync::Arc;
@@ -5,15 +6,18 @@ use surf::Client;
 use thiserror::Error;
 
 const MAX_POOL_SIZE: usize = 100;
+/// Convenient Result redefinition that uses [SurfPoolError] as Error
 pub type Result<T> = ::std::result::Result<T, SurfPoolError>;
 
 #[derive(Debug)]
+/// The main struct, used to get a valid connection
 pub struct SurfPool {
     pool: Vec<Arc<Mutex<Client>>>,
     semaphore: Arc<Semaphore>,
     health_check: Option<surf::Request>,
 }
 
+/// The builder struct, used to create a SurfPool
 #[derive(Debug, Default)]
 pub struct SurfPoolBuilder {
     size: usize,
@@ -28,6 +32,15 @@ pub enum SurfPoolError {
 }
 
 impl SurfPoolBuilder {
+    /// This function is used to create a new builder
+    /// The parameter size is checked if is a valid and reasonable number
+    /// It cannot be 0 or bigger than 100
+    ///
+    /// ```rust
+    /// use surf_pool::SurfPoolBuilder;
+    ///
+    /// SurfPoolBuilder::new(3).unwrap();
+    /// ```
     pub fn new(size: usize) -> Result<Self> {
         if size == 0 || size > MAX_POOL_SIZE {
             return Err(SurfPoolError::SizeNotValid(size));
@@ -37,14 +50,50 @@ impl SurfPoolBuilder {
             ..Default::default()
         })
     }
+    /// The health_check is a URL used to manage the connection
+    /// It's used to check the connection health status, as keepalive and
+    /// as pre-connect URL
+    ///
+    /// ```rust
+    /// use surf_pool::SurfPoolBuilder;
+    ///
+    /// let builder = SurfPoolBuilder::new(3)
+    ///     .unwrap()
+    ///     .health_check(surf::get("https://httpbin.org"));
+    /// ```
     pub fn health_check(mut self, health_check: surf::RequestBuilder) -> Self {
         self.health_check = Some(health_check);
         self
     }
+    /// If true, the connections are established during the build phase, using
+    /// the health_check. If the health_check is not defined, the pre-connection
+    /// cannot be peformed, hence it will be ignored
+    ///
+    /// ```rust
+    /// use surf_pool::SurfPoolBuilder;
+    ///
+    /// let builder = SurfPoolBuilder::new(3).
+    ///     unwrap()
+    ///     .health_check(surf::get("https://httpbin.org"))
+    ///     .pre_connect(true);
+    /// ```
     pub fn pre_connect(mut self, pre_connect: bool) -> Self {
         self.pre_connect = pre_connect;
         self
     }
+    /// The build function that creates the @SurfPool
+    /// If a health_check is available and pre_connect is set to true
+    /// the connections are established in this function
+    ///
+    /// ```rust
+    /// use surf_pool::SurfPoolBuilder;
+    ///
+    /// let builder = SurfPoolBuilder::new(3).
+    ///     unwrap()
+    ///     .health_check(surf::get("https://httpbin.org"))
+    ///     .pre_connect(true);
+    /// let pool = builder.build();
+    /// ```
     pub async fn build(self) -> SurfPool {
         let mut pool = Vec::with_capacity(self.size);
         for _ in 0..self.size {
@@ -79,10 +128,18 @@ pub struct Handler {
 }
 
 impl SurfPool {
-    fn get_pool_size(&self) -> usize {
+    pub fn get_pool_size(&self) -> usize {
         self.pool.len()
     }
-    async fn get_handler(&self) -> Option<Handler> {
+    /// This function return an handler representing a potential connection
+    /// available in the pool.
+    /// The handler is not a connection, but a Surf client can be obtained
+    /// via [`get_client`]
+    /// If the pool is empty, the function will wait until an handler is
+    /// available again
+    /// To not starve other clients, it's important to drop the handler after
+    /// it has been used
+    pub async fn get_handler(&self) -> Option<Handler> {
         let sg = self.semaphore.acquire_arc(1).await.unwrap();
         for m in &self.pool {
             if let Some(mg) = m.try_lock_arc() {
@@ -94,6 +151,10 @@ impl SurfPool {
 }
 
 impl Handler {
+    /// This function allows you to get a Surf client that can be used
+    /// to perform an async http call
+    /// If the connection is previously established, the connection is
+    /// already ready to use
     pub fn get_client(&self) -> &Client {
         &*self.mg
     }
