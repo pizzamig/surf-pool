@@ -139,6 +139,19 @@ impl SurfPool {
     /// available again
     /// To not starve other clients, it's important to drop the handler after
     /// it has been used
+    /// The return type is an [`Option`], but it should never return `None`,
+    /// the system is designed in a way that, once unblocked, at least one
+    /// resources should be available
+    /// ```rust
+    /// # futures_lite::future::block_on( async {
+    ///
+    /// use surf_pool::SurfPoolBuilder;
+    ///
+    /// let builder = SurfPoolBuilder::new(3).unwrap();
+    /// let pool = builder.build().await;
+    /// let handler = pool.get_handler().await.unwrap();
+    /// # } )
+    /// ```
     pub async fn get_handler(&self) -> Option<Handler> {
         let sg = self.semaphore.acquire_arc(1).await.unwrap();
         for m in &self.pool {
@@ -155,6 +168,21 @@ impl Handler {
     /// to perform an async http call
     /// If the connection is previously established, the connection is
     /// already ready to use
+    /// ```rust
+    /// # futures_lite::future::block_on( async {
+    ///
+    /// use surf_pool::SurfPoolBuilder;
+    ///
+    /// let builder = SurfPoolBuilder::new(3).unwrap();
+    /// let pool = builder.build().await;
+    /// let handler = pool.get_handler().await.unwrap();
+    /// handler
+    ///     .get_client()
+    ///     .get("https://httpbin.org")
+    ///     .recv_string()
+    ///     .await;
+    /// # } )
+    /// ```
     pub fn get_client(&self) -> &Client {
         &*self.mg
     }
