@@ -9,7 +9,7 @@ const MAX_POOL_SIZE: usize = 100;
 /// Convenient Result redefinition that uses [SurfPoolError] as Error
 pub type Result<T> = ::std::result::Result<T, SurfPoolError>;
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 /// The main struct, used to get a valid connection
 pub struct SurfPool {
     pool: Vec<Arc<Mutex<Client>>>,
