@@ -4,11 +4,8 @@ async fn main() -> surf_pool::Result<()> {
         .unwrap()
         .health_check(surf::get("https://pot.pizzamig.dev"))
         .pre_connect(true);
-    let uut = builder.build().await;
-    let handler = uut
-        .get_handler()
-        .await
-        .expect("This is not supposed to happen");
+    let pool = builder.build().await;
+    let handler = pool.get_handler().await;
     handler
         .get_client()
         .get("https://pot.pizzamig.dev")
