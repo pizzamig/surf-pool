@@ -1,10 +1,10 @@
 [package]
 name = "surf-pool"
-version = "0.1.2"
+version = "0.2.0"
 edition = "2018"
 authors = ["Luca Pizzamiglio <pizzamig@FreeBSD.org>"]
 keywords = ["surf", "async-std", "pool"]
-description = "Utility modules and functions useful to interact with the pot framework"
+description = "Crate to manage https connection pools with surf"
 readme = "README.md"
 license-file = "LICENSE"
 
