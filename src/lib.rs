@@ -149,10 +149,14 @@ impl SurfPool {
     ///
     /// let builder = SurfPoolBuilder::new(3).unwrap();
     /// let pool = builder.build().await;
-    /// let handler = pool.get_handler().await.unwrap();
+    /// let handler = pool.get_handler().await;
     /// # } )
     /// ```
-    pub async fn get_handler(&self) -> Option<Handler> {
+    pub async fn get_handler(&self) -> Handler {
+        self.get_handler_option().await.unwrap()
+    }
+
+    async fn get_handler_option(&self) -> Option<Handler> {
         let sg = self.semaphore.acquire_arc(1).await.unwrap();
         for m in &self.pool {
             if let Some(mg) = m.try_lock_arc() {
@@ -175,7 +179,7 @@ impl Handler {
     ///
     /// let builder = SurfPoolBuilder::new(3).unwrap();
     /// let pool = builder.build().await;
-    /// let handler = pool.get_handler().await.unwrap();
+    /// let handler = pool.get_handler().await;
     /// handler
     ///     .get_client()
     ///     .get("https://httpbin.org")
@@ -200,8 +204,6 @@ mod tests {
         let uut = builder.build().await;
         assert_eq!(uut.get_pool_size(), 3);
         let handler = uut.get_handler().await;
-        assert!(handler.is_some());
-        let handler = handler.unwrap();
         handler
             .get_client()
             .get("https://pot.pizzamig.dev")
@@ -209,8 +211,6 @@ mod tests {
             .await
             .unwrap();
         let h2 = uut.get_handler().await;
-        assert!(h2.is_some());
-        let h2 = h2.unwrap();
         h2.get_client()
             .get("https://pot.pizzamig.dev")
             .recv_string()
@@ -227,8 +227,6 @@ mod tests {
         let uut = builder.build().await;
         assert_eq!(uut.get_pool_size(), 3);
         let handler = uut.get_handler().await;
-        assert!(handler.is_some());
-        let handler = handler.unwrap();
         handler
             .get_client()
             .get("https://pot.pizzamig.dev")
@@ -237,8 +235,6 @@ mod tests {
             .unwrap();
         drop(handler);
         let h2 = uut.get_handler().await;
-        assert!(h2.is_some());
-        let h2 = h2.unwrap();
         h2.get_client()
             .get("https://pot.pizzamig.dev")
             .recv_string()
