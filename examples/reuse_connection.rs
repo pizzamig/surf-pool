@@ -4,8 +4,8 @@ async fn main() -> surf_pool::Result<()> {
         .unwrap()
         .health_check(surf::get("https://pot.pizzamig.dev"))
         .pre_connect(false);
-    let uut = builder.build().await;
-    let handler = uut.get_handler().await.expect("This shouldn't happen");
+    let pool = builder.build().await;
+    let handler = pool.get_handler().await;
     handler
         .get_client()
         .get("https://pot.pizzamig.dev")
@@ -13,7 +13,7 @@ async fn main() -> surf_pool::Result<()> {
         .await
         .expect("Error while receiving data - first request");
     drop(handler);
-    let handler = uut.get_handler().await.expect("This shouldn't happen");
+    let handler = pool.get_handler().await;
     handler
         .get_client()
         .get("https://pot.pizzamig.dev")
